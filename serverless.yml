@@ -1,0 +1,162 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: gateway
+# app and org for use with dashboard.serverless.com
+#app: your-app-name
+#org: your-org-name
+configValidationMode: off
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+frameworkVersion: "3"
+plugins:
+  - serverless-dependson-plugin
+  - serverless-dynamodb-seed
+  - serverless-domain-manager
+provider:
+  name: aws
+  deploymentMethod: direct
+  runtime: java21
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    VEHICLE_PROVIDER_RELATIONS_TABLE: VehicleProviderRelations-${self:service}-${self:provider.stage}
+    PROVIDER_AUTHORIZATIONS_RELATIONS_TABLE: ProviderAuthorizationRelations-${self:service}-${self:provider.stage}
+  timeout: 20
+  memorySize: 2048
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: "arn:aws:dynamodb:us-east-1:*:*"
+        - Effect: Allow
+          Action:
+            - iot:*
+          Resource: "arn:aws:iot:us-east-1:*:*"
+package:
+  artifact: "target/${self:service}-${self:provider.stage}.jar"
+functions:
+  customAuthorizer:
+    handler: com.example.auth.CustomAuthorizerHandler
+    snapStart: true
+    logRetentionInDays: 14
+  getVehicles:
+    handler: com.example.vehicle.GetVehiclesHandler
+    snapStart: true
+    logRetentionInDays: 14
+    events:
+      - http:
+          method: GET
+          path: /vehicles
+          authorizer:
+            name: customAuthorizer
+  getVehicleById:
+    handler: com.example.vehicle.GetVehicleByIdHandler
+    snapStart: true
+    logRetentionInDays: 14
+    events:
+      - http:
+          method: GET
+          path: /vehicles/{id}
+  updateVehicleById:
+    handler: com.example.vehicle.UpdateVehicleByIdHandler
+    snapStart: true
+    logRetentionInDays: 14
+    events:
+      - http:
+          method: POST
+          path: /vehicles/{id}
+resources:
+  Resources:
+    VehicleProviderRelations:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.VEHICLE_PROVIDER_RELATIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: providerId
+            AttributeType: S
+          - AttributeName: vehicleId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: providerId
+            KeyType: HASH
+          - AttributeName: vehicleId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: vehicleIdIndex
+            KeySchema:
+              - AttributeName: vehicleId
+                KeyType: HASH
+              - AttributeName: providerId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    ProviderAuthorizationRelations:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PROVIDER_AUTHORIZATIONS_RELATIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: providerId
+            AttributeType: S
+          - AttributeName: authorizationKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: providerId
+            KeyType: HASH
+          - AttributeName: authorizationKey
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: authorizationKeyIndex
+            KeySchema:
+              - AttributeName: authorizationKey
+                KeyType: HASH
+              - AttributeName: providerId
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+custom:
+  seed:
+    vehicle-provider-relations:
+      table: VehicleProviderRelations-${self:service}-dev
+      sources:
+        - seed-resource/vehicle-provider-relations-dev.json
+    provider-authorization-relations:
+      table: ProviderAuthorizationRelations-${self:service}-dev
+      sources:
+        - seed-resource/provider-authorization-relations-dev.json
+  customDomain:
+    domainName: ${self:provider.stage}.api.example.com
+    basePath: v1
+    stage: ${self:provider.stage}
+    certificateName: "*.api.example.com"
+    createRoute53Record: true
+    hostedZoneId: Z07234222CAZVBVTFYHNN

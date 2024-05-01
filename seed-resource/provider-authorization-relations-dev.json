@@ -1,0 +1,10 @@
+[
+    {
+        "providerId": "example",
+        "authorizationKey": "a-random-example-dev-key"
+    },
+    {
+        "providerId": "test",
+        "authorizationKey": "a-random-test-dev-key"
+    }
+]

@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "serverless-dependson-plugin": "^1.1.2",
+    "serverless-domain-manager": "^7.3.8",
+    "serverless-dynamodb-seed": "^0.3.0"
+  }
+}

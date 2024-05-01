@@ -1,0 +1,14 @@
+[
+    {
+        "providerId": "example",
+        "vehicleId": "simulated-vehicle-1"
+    },
+    {
+        "providerId": "example",
+        "vehicleId": "simulated-vehicle-2"
+    },
+    {
+        "providerId": "test",
+        "vehicleId": "simulated-vehicle-3"
+    }
+]
